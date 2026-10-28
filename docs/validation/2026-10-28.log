@@ -1,0 +1,53 @@
+mkdir -p build
+bison -d -o build/blif.tab.c src/blif.y
+g++ -O2 -std=c++17 -Wall -Wextra -c src/bench_main.cpp -o build/bench_main.o
+g++ -O2 -std=c++17 -Wall -Wextra -c src/strstore_strdup.cpp -o build/strstore_strdup.o
+g++ -O2 -std=c++17 -Wall -Wextra -c src/strstore_intern.cpp -o build/strstore_intern.o
+cc -O2 -Wall -Wextra -Isrc -c build/blif.tab.c -o build/blif.tab.o
+flex -o build/lex.yy.c src/blif.l
+cc -O2 -Wall -Wextra -Isrc -Ibuild -c build/lex.yy.c -o build/lex.yy.o
+g++ -O2 -std=c++17 -Wall -Wextra -o build/blif_bench_strdup build/blif.tab.o build/lex.yy.o build/bench_main.o build/strstore_strdup.o
+g++ -O2 -std=c++17 -Wall -Wextra -o build/blif_bench_intern build/blif.tab.o build/lex.yy.o build/bench_main.o build/strstore_intern.o
+g++ -O2 -std=c++17 -Wall -Wextra -o build/handwritten_bench src/handwritten/main.cpp
+g++ -O2 -std=c++17 -Wall -Wextra -Isrc -o build/strstore_test tests/strstore_test.cpp src/strstore_intern.cpp
+./build/strstore_test
+python3 scripts/verify.py
+PASS: gates=0 latches=0, model hash + token equality
+PASS: gates=1 latches=1, model hash + token equality
+PASS: gates=1000 latches=32, model hash + token equality
+PASS: zero iterations and malformed input rejected
+python3 scripts/gen_blif.py --gates 100000 --latches 2048 --out blif/dtp_synth.blif
+wrote blif/dtp_synth.blif  (4613.7 KiB, 737451 tokens, 100000 gates, 2048 latches)
+./build/blif_bench_strdup blif/dtp_synth.blif 7
+文件: blif/dtp_synth.blif (4613.7 KiB), 迭代: 7
+blifParse(yyparse)  min=  20.227 ms   med=  21.007 ms   unique=0
+model=dtp_top inputs=94 outputs=64 gates=100000 latches=2048 hash=fc470cd5625ed839
+./build/blif_bench_intern blif/dtp_synth.blif 7
+文件: blif/dtp_synth.blif (4613.7 KiB), 迭代: 7
+blifParse(yyparse)  min=  17.347 ms   med=  18.921 ms   unique=102152
+model=dtp_top inputs=94 outputs=64 gates=100000 latches=2048 hash=fc470cd5625ed839
+python3 scripts/gen_blif.py --gates 100000 --latches 2048 --out blif/dtp_synth.blif
+wrote blif/dtp_synth.blif  (4613.7 KiB, 737451 tokens, 100000 gates, 2048 latches)
+./build/handwritten_bench blif/dtp_synth.blif 7
+== BLIF 网表解析性能对比 ==
+文件: blif/dtp_synth.blif
+大小: 4613.72 KiB, token 数: 737451, 迭代: 7
+
+功能对齐校验: PASS（token 数=737451，两版逐 token 字符串完全一致）
+  网表摘要: model=dtp_top, .names 门=100000, .latch=2048, .end=1
+
+---- 计时结果（取 7 次最小值，单位 ms）----
+  文件读取                 :    1.568 ms
+  blifParse (strdup 基线)  :   10.303 ms   (中位   10.475)
+  blifParse (驻留 优化)    :    7.834 ms   (中位    8.061)
+
+  blifParse 占网表解析比例  : 86.8%  (读 1.568 ms + 解析 10.303 ms)
+  blifParse 提速            : 1.32 x
+  blifParse 性能提升        : 24.0 %
+Linux 6.6.87.2-microsoft-standard-WSL2
+g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+flex 2.6.4
+bison (GNU Bison) 3.8.2
+Python 3.10.12
+Model name:                           Intel(R) Core(TM) i7-14700K
+Clean build directory: /tmp/netlist-release-check.HhVeGd

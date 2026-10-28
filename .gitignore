@@ -1,0 +1,4 @@
+/build/
+/blif/*.blif
+/results/
+__pycache__/
